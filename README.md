@@ -7,6 +7,8 @@ While the Firefox app itself does not support `adb backup` due to
 `allowBackups="false"` ([bug 1808763](https://bugzilla.mozilla.org/show_bug.cgi?id=1808763)),
 we can still access all data by connecting through a Firefox-specific debugger.
 
+Repository: https://github.com/Rob--W/android-ext-qa/tree/main/firefox-android-backup-restore
+
 ## Requirements
 
 All you need is `adb`, and a desktop Firefox instance to use `about:debugging`:
@@ -46,113 +48,53 @@ The following are also relevant for consistency, but not critical:
 
 ## Backup
 
-To create a backup in a readable location, run the following JavaScript snippet
-at `about:debugging` and wait for "Done!" to be printed.
-
-```
-(async function createBackup() {
-  const dirs = ["shared_prefs", "files", "databases", "cache", "nimbus_data", "no_backup", "glean_data"];
-  const appid = Services.env.get("MOZ_ANDROID_PACKAGE_NAME");
-  const pubdir = "/sdcard/Android/data/" + appid + "/firefox-android-backup/";
-
-  // Remove destination if existent to avoid merging multiple directories.
-  await IOUtils.remove(pubdir, { recursive: true });
-
-  // Create parent directory and prevent media scan.
-  await IOUtils.getFile(pubdir, ".nomedia");
-
-  const datadir = Services.env.get("GRE_HOME");
-  const appfiles = await IOUtils.getChildren(datadir);
-  // For informative purposes, in case you want to include more
-  console.debug("Found files", appfiles);
-
-  for (let entry of dirs) {
-    const from = PathUtils.join(datadir, entry);
-    const dest = PathUtils.join(pubdir, entry);
-    // Note: copies file attributes, but does not preserve timestamps!
-    await IOUtils.copy(from, dest, { recursive: true });
-  }
-  console.log("Done! Backup files are at: " + pubdir);
-})();
-```
-
-### Transfer backup to other device
-
-To get the backup on your computer, run the following three commands after each
-other. If not using the main Firefox app, replace `org.mozilla.firefox` (2x)
-with the actual Android app ID if needed.
+To backup, prepare to receive the backup data in the terminal:
 
 ```sh
-adb shell tar cz -f /sdcard/firefox-android-backup.tar.gz . -C /sdcard/Android/data/org.mozilla.firefox/firefox-android-backup/
-adb pull /sdcard/firefox-android-backup.tar.gz
-
-adb shell rm -r /sdcard/Android/data/org.mozilla.firefox/firefox-android-backup/ /sdcard/firefox-android-backup.tar.gz
+adb reverse tcp:12101 tcp:12101
+nc -l -s 127.0.0.1 -p 12101 > firefox-android-backup.tar.gz
 ```
 
-The above puts the backup files in one file `firefox-android-backup.tar.gz`,
-pulls the file off the device, and removes these backup files from the device.
+Copy the contents of [`snippets_for_firefox_debugging.js`](snippets_for_firefox_debugging.js).
+Open `about:debugging`, scroll down to "Main Process" and click on Inspect.
+Switch to the Console, paste the code and run it. Then type and run:
+
+```js
+fab_backup_create();
+```
+
+This copies [relevant files](#relevant-files) to `firefox-android-backup.tar.gz`
+without changing any data, except for one log file. To remove the log file, run:
+
+```js
+fab_cleanup();
+```
 
 ## Restore
 
-To restore the backup, we extract the backup file on the Android device first,
-to allow the app to move the backup later.
+The steps below will replace [relevant files](#relevant-files) with the backup.
+
+To restore the profile from the backup, put the backup archive on the device:
 
 ```sh
-adb push firefox-android-backup.tar.gz /sdcard/firefox-android-backup.tar.gz
-adb shell tar xf /sdcard/firefox-android-backup.tar.gz -C /sdcard/Android/data/org.mozilla.firefox/firefox-android-backup/
-adb shell rm /sdcard/firefox-android-backup.tar.gz
+adb shell mkdir /sdcard/Android/data/org.mozilla.firefox/
+adb push firefox-android-backup.tar.gz /sdcard/Android/data/org.mozilla.firefox/
 ```
 
-On the Android device, open the "App Info" of Firefox Android, for example by
-long-pressing the app icon and choosing "App Info". Keep this screen open as a
-preparation for the next step, with the "Force stop" button visible.
+Copy the contents of [`snippets_for_firefox_debugging.js`](snippets_for_firefox_debugging.js).
+Open `about:debugging`, scroll down to "Main Process" and click on Inspect.
+Switch to the Console, paste the code and run it.
 
-To finally replace the existing files with the backup, run the following
-JavaScript snippet at `about:debugging`. When it completes ("Done!" is logged),
-click on "Force stop" in the "App Info" view.
+Then type `fab_backup_restore();` and run it. This has no visible output, unless
+an error occurs. Upon successful completion, the app is killed to prevent the
+old app instance from corrupting the restored data. The logs can be viewed with:
+
+```sh
+adb shell cat /sdcard/Android/data/org.mozilla.firefox/firefox-android-backup.log
+```
+
+When you are done, remove the archive and log file with:
 
 ```js
-(async function restoreBackup() {
-  const ignoredAtTop = [".nomedia", "lib"];
-  const appid = Services.env.get("MOZ_ANDROID_PACKAGE_NAME");
-  const pubdir = "/sdcard/Android/data/" + appid + "/firefox-android-backup/";
-  const datadir = Services.env.get("GRE_HOME");
-
-  const nsFile = Components.Constructor("@mozilla.org/file/local;1", "nsIFile", "initWithPath");
-
-  // Use cache dir so that the user can clear it without debugger if needed.
-  const tempDir = nsFile(datadir + "/cache/firefox-android-backup.tmp");
-  const destDir = nsFile(datadir);
-
-  // Remove destination if existent to avoid merging multiple directories.
-  await IOUtils.remove(tempDir.path, { recursive: true });
-
-  // Moving from /sdcard/ to internal /data/ could be an expensive copy+remove.
-  await IOUtils.move(pubdir, tempDir.path);
-  // Avoid conflicting I/O by the app by using sync nsFile I/O rename/remove.
-
-  // Swap files in tempDir with destDir.
-  for (const entry of Array.from(tempDir.directoryEntries)) {
-    if (ignoredAtTop.includes(entry.leafName)) {
-      continue;
-    }
-    const dest = destDir.clone();
-    dest.append(entry.leafName);
-    if (entry.leafName === "cache") {
-      // entry is in tempDir, and tempDir is in dest. To swap entry and dest,
-      // we need to move dest to a temporary common ancestor (destDir).
-      dest.moveTo(destDir, ".old_cache_will_be_moved_again");
-      entry.renameTo(destDir, "cache");
-      dest.renameTo(tempDir, ".old_cache");
-      continue;
-    }
-    if (dest.exists()) {
-      dest.renameTo(tempDir, ".old_" + entry.leafName);
-    }
-    entry.renameTo(destDir, entry.leafName);
-  }
-
-  console.log("Done! Backup restored. Force-stop now to avoid corruption");
-  tempDir.remove(true);
-})();
+fab_cleanup();
 ```

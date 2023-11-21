@@ -1,0 +1,28 @@
+{
+    "extends": "eslint:recommended",
+    "parserOptions": {
+        "ecmaVersion": 2020
+    },
+    "env": {
+        "es6": true,
+        "browser": true,
+        "node": true
+    },
+    "globals": {
+        "ChromeUtils": true,
+        "Cc": true,
+        "Ci": true,
+        "Cu": true,
+        "IOUtils": true,
+        "Services": true
+    },
+    "rules": {
+        "max-len": [2, {
+            "code": 100,
+            "ignoreUrls": true
+        }],
+        "semi": [1, "always"],
+        "no-console": [0],
+        "no-unused-vars": [2, {"varsIgnorePattern": "^fab_"}]
+    }
+}
