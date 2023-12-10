@@ -52,6 +52,7 @@ adb reverse tcp:12101 tcp:12101
 nc -l -s 127.0.0.1 -p 12101 > firefox-android-backup.tar.gz
 ```
 
+Open the Firefox app on your phone, and visit `about:blank` (any webpage works).
 Copy the contents of [`snippets_for_firefox_debugging.js`](snippets_for_firefox_debugging.js).
 Open `about:debugging`, scroll down to "Main Process" and click on Inspect.
 Switch to the Console, paste the code and run it. Then type and run:
@@ -78,6 +79,7 @@ adb shell mkdir /sdcard/Android/data/org.mozilla.firefox/
 adb push firefox-android-backup.tar.gz /sdcard/Android/data/org.mozilla.firefox/
 ```
 
+Open the Firefox app on your phone, and visit `about:blank` (any webpage works).
 Copy the contents of [`snippets_for_firefox_debugging.js`](snippets_for_firefox_debugging.js).
 Open `about:debugging`, scroll down to "Main Process" and click on Inspect.
 Switch to the Console, paste the code and run it.
