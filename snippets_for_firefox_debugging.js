@@ -1,6 +1,6 @@
-// Source: https://github.com/Rob--W/android-ext-qa/tree/main/firefox-android-backup-restore
+// Source: https://github.com/Rob--W/firefox-android-backup-restore
 var HELP_USAGE_TEXT = `Usage:
-https://github.com/Rob--W/android-ext-qa/tree/main/firefox-android-backup-restore
+https://github.com/Rob--W/firefox-android-backup-restore
 
 1. Verify that this program works (optional):
 fab_sanity_check();

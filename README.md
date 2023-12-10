@@ -7,7 +7,7 @@ While the Firefox app itself does not support `adb backup` due to
 `allowBackups="false"` ([bug 1808763](https://bugzilla.mozilla.org/show_bug.cgi?id=1808763)),
 we can still access all data by connecting through a Firefox-specific debugger.
 
-Repository: https://github.com/Rob--W/android-ext-qa/tree/main/firefox-android-backup-restore
+Repository: https://github.com/Rob--W/firefox-android-backup-restore
 
 ## Requirements
 
@@ -16,9 +16,6 @@ All you need is `adb`, and a desktop Firefox instance to use `about:debugging`:
 - Tutorial with screenshots of using `about:debugging`: https://extensionworkshop.com/documentation/develop/developing-extensions-for-firefox-for-android/#debug-your-extension
 - Documentation of `about:debugging`: https://firefox-source-docs.mozilla.org/devtools-user/about_colon_debugging/index.html#connecting-to-a-remote-device
 - Optional, adb over Wi-Fi (instead of USB): https://firefox-source-docs.mozilla.org/devtools-user/about_colon_debugging/index.html#about-colon-debugging-connecting-to-android-over-wi-fi
-
-To run JavaScript code in Firefox's main process, follow the instructions at
-[Running JS snippet in main process](https://github.com/rob--w/android-ext-qa#running-js-snippet-in-main-process).
 
 ## Relevant files
 
